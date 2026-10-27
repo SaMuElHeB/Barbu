@@ -10,7 +10,10 @@ export function TopBar({ title, onBack, right }: { title: string; onBack?: () =>
   );
 }
 
-/** Champ numérique avec bouton ± (les claviers numériques mobiles n'ont pas toujours de signe moins). */
+/**
+ * Champ numérique. Pour les valeurs pouvant être négatives, on utilise type="number" :
+ * le clavier du téléphone propose alors le signe moins.
+ */
 export function NumberField({ value, onChange, label, allowNegative = true }: {
   value: number; onChange: (v: number) => void; label?: string; allowNegative?: boolean;
 }) {
@@ -18,18 +21,16 @@ export function NumberField({ value, onChange, label, allowNegative = true }: {
   useEffect(() => { if (Number(text) !== value) setText(String(value)); }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <span className="numfield">
-      {allowNegative && (
-        <button type="button" className="sign" onClick={() => onChange(-value)} aria-label="Changer le signe">±</button>
-      )}
       <input
         aria-label={label}
-        inputMode="numeric"
+        type={allowNegative ? 'number' : 'text'}
+        inputMode={allowNegative ? undefined : 'numeric'}
         value={text}
         onChange={(e) => {
-          const t = e.target.value.replace(/[^\d-]/g, '');
+          const t = e.target.value.replace(allowNegative ? /[^\d-]/g : /[^\d]/g, '');
           setText(t);
           const n = parseInt(t, 10);
-          if (!Number.isNaN(n)) onChange(allowNegative ? n : Math.abs(n));
+          if (!Number.isNaN(n)) onChange(n);
         }}
         onBlur={() => setText(String(value))}
       />
@@ -62,4 +63,10 @@ export function Segmented<T extends string | number>({ options, value, onChange 
   );
 }
 
-export const fmt = (n: number) => (n > 0 ? `+${n}` : String(n));
+/** Le moins de points gagne : + en rouge, − en vert. */
+export const tone = (v: number) => (v > 0 ? 'neg' : v < 0 ? 'pos' : '');
+
+/** Classement : le moins de points est 1er (ex aequo = même place). */
+export const places = (t: number[]) => t.map((v) => t.filter((x) => x < v).length + 1);
+
+export const fmt = (n: number) => String(n);

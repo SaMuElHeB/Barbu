@@ -1,39 +1,56 @@
 import { useState } from 'react';
 import type { Contract, RuleSet } from '../types';
-import { DEFAULT_RULES, TARGET_LABEL } from '../rules';
-import { rulesShareUrl, shareLink } from '../storage';
+import { TARGET_LABEL } from '../rules';
 import { NumberField, TopBar } from './ui';
 
-export function Settings({ rules, onChange, onBack }: {
-  rules: RuleSet; onChange: (r: RuleSet) => void; onBack: () => void;
+/**
+ * Écran du barème. Les modifications restent un brouillon tant qu'on n'a pas
+ * touché « Enregistrer ». Depuis une partie, le barème s'applique à la partie en cours.
+ */
+export function Settings({ rules, inGame, onSave, onBack }: {
+  rules: RuleSet;
+  inGame: boolean;
+  onSave: (r: RuleSet, keepForNext: boolean) => void;
+  onBack: () => void;
 }) {
-  const [msg, setMsg] = useState('');
-  const update = (c: Contract) => onChange({ contracts: rules.contracts.map((x) => (x.id === c.id ? c : x)) });
+  const [draft, setDraft] = useState<RuleSet>(() => structuredClone(rules));
+  const [keepForNext, setKeepForNext] = useState(true);
+  const dirty = JSON.stringify(draft) !== JSON.stringify(rules);
 
-  const share = async () => {
-    const res = await shareLink(rulesShareUrl(rules), 'Mon barème du Barbu');
-    if (res !== 'shared') {
-      setMsg(res === 'copied' ? 'Lien copié, envoyez-le à vos amis !' : 'Partage impossible');
-      setTimeout(() => setMsg(''), 3000);
-    }
+  const update = (c: Contract) => setDraft({ contracts: draft.contracts.map((x) => (x.id === c.id ? c : x)) });
+  const back = () => {
+    if (dirty && !confirm('Vous avez des modifications non enregistrées. Quitter sans enregistrer ?')) return;
+    onBack();
   };
 
   return (
     <>
-      <TopBar title="Barème des points" onBack={onBack} />
+      <TopBar title="Barème des points" onBack={back} />
       <main className="page">
-        <p className="hint">Chacun compte à sa façon : ajustez les valeurs. Elles s'appliquent aux nouvelles parties.</p>
-        {rules.contracts.map((c) => (
+        <p className="hint">
+          Les points sont des pénalités : le joueur qui a le moins de points gagne.
+          {inGame
+            ? ' Les changements s’appliquent à la partie en cours, y compris aux manches déjà jouées.'
+            : ' Les changements s’appliquent aux nouvelles parties.'}
+        </p>
+        {draft.contracts.map((c) => (
           <section className="card" key={c.id}>
             <h2><span className="emoji-sm">{c.emoji}</span>{c.name}</h2>
             <Fields c={c} onChange={update} />
           </section>
         ))}
-        {msg && <p className="toast">{msg}</p>}
-        <button className="btn primary big" onClick={share}>Partager mon barème</button>
-        <button className="btn ghost" onClick={() => confirm('Revenir au barème par défaut ?') && onChange(DEFAULT_RULES)}>
-          Revenir au barème par défaut
-        </button>
+
+        <div className="savebar">
+          {inGame && (
+            <label className="check">
+              <input type="checkbox" checked={keepForNext} onChange={(e) => setKeepForNext(e.target.checked)} />
+              Garder ce barème pour les prochaines parties
+            </label>
+          )}
+          <button className="btn primary big" disabled={!dirty} onClick={() => onSave(draft, !inGame || keepForNext)}>
+            {dirty ? 'Enregistrer le barème' : 'Aucune modification'}
+          </button>
+        </div>
       </main>
     </>
   );

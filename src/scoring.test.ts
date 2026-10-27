@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_RULES } from './rules';
 import type { Game, PerItemContract } from './types';
+import { places } from './components/ui';
 import { isOver, itemTotal, scoreLine, totals, validatePart } from './scoring';
 
 const R = DEFAULT_RULES;
@@ -20,20 +21,20 @@ describe('totaux selon le jeu', () => {
 
 describe('points par ligne', () => {
   it('pas de dames', () => {
-    expect(scoreLine(c('dames'), { dames: [2, 1, 1, 0] }, R, ctx)).toEqual([-12, -6, -6, 0]);
+    expect(scoreLine(c('dames'), { dames: [2, 1, 1, 0] }, R, ctx)).toEqual([12, 6, 6, 0]);
   });
   it('roi de cœur et 2 derniers plis', () => {
-    expect(scoreLine(c('roi'), { roi: [2] }, R, ctx)).toEqual([0, 0, -20, 0]);
-    expect(scoreLine(c('derniers'), { derniers: [1, 1] }, R, ctx)).toEqual([0, -30, 0, 0]);
+    expect(scoreLine(c('roi'), { roi: [2] }, R, ctx)).toEqual([0, 0, 20, 0]);
+    expect(scoreLine(c('derniers'), { derniers: [1, 1] }, R, ctx)).toEqual([0, 30, 0, 0]);
   });
   it('réussite', () => {
-    expect(scoreLine(c('reussite'), { reussite: [3, 0, 2, 1] }, R, ctx)).toEqual([20, 0, 10, 40]);
+    expect(scoreLine(c('reussite'), { reussite: [3, 0, 2, 1] }, R, ctx)).toEqual([-20, 0, -10, -40]);
   });
   it('salade = somme des lignes', () => {
     const s = scoreLine(c('salade'), {
       roi: [0], coeurs: [13, 0, 0, 0], dames: [0, 4, 0, 0], plis: [4, 3, 3, 3], derniers: [3, 3],
     }, R, ctx);
-    expect(s).toEqual([-20 - 26 - 8, -24 - 6, -6, -6 - 30]);
+    expect(s).toEqual([20 + 26 + 8, 24 + 6, 6, 6 + 30]);
   });
   it('vérifie les totaux', () => {
     expect(validatePart(c('plis') as PerItemContract, [4, 3, 3, 2], ctx)).toMatch(/12 plis sur 13/);
@@ -46,7 +47,9 @@ describe('partie', () => {
     const g: Game = { id: 'g', createdAt: 0, players: ['A', 'B', 'C', 'D'], deck: 52, rules: R, results: {} };
     g.results.dames = { dames: [4, 0, 0, 0] };
     g.results.roi = { roi: [1] };
-    expect(totals(g)).toEqual([-24, -20, 0, 0]);
+    expect(totals(g)).toEqual([24, 20, 0, 0]);
     expect(isOver(g)).toBe(false);
+    // le moins de points gagne
+    expect(places(totals(g))).toEqual([4, 3, 1, 1]);
   });
 });

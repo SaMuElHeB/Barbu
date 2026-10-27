@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { Contract, Game, LineResult, PartInput, SimpleContract } from '../types';
 import { TARGET_LABEL } from '../rules';
 import { ctxOf, emptyInput, itemTotal, partsOf, scoreLine, validatePart, type Ctx } from '../scoring';
-import { fmt, Stepper, TopBar } from './ui';
+import { fmt, Stepper, tone, TopBar } from './ui';
 
 export function LineEntry({ game, contract, onCancel, onSave, onClear }: {
   game: Game; contract: Contract; onCancel: () => void; onSave: (r: LineResult) => void; onClear?: () => void;
@@ -35,17 +35,16 @@ export function LineEntry({ game, contract, onCancel, onSave, onClear }: {
           <div className="preview-grid">
             {game.players.map((p, i) => (
               <div key={i}><span>{p}</span>
-                <b className={preview[i] < 0 ? 'neg' : preview[i] > 0 ? 'pos' : ''}>{fmt(preview[i])}</b></div>
+                <b className={tone(preview[i])}>{fmt(preview[i])}</b></div>
             ))}
           </div>
         </section>
 
         {errors.length > 0 && <ul className="errors">{errors.map((e) => <li key={e}>{e}</li>)}</ul>}
 
-        <button className="btn primary big" disabled={errors.length > 0} onClick={() => onSave(result)}>Valider</button>
-        {errors.length > 0 && (
-          <button className="btn ghost" onClick={() => onSave(result)}>Valider quand même</button>
-        )}
+        <button className="btn primary big" disabled={errors.length > 0} onClick={() => onSave(result)}>
+          {errors.length > 0 ? 'Les comptes ne sont pas bons' : 'Valider'}
+        </button>
         {onClear && <button className="btn danger" onClick={onClear}>Effacer cette manche</button>}
       </main>
     </>

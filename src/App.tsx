@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { Game, RuleSet } from './types';
 import { DEFAULT_RULES, uid } from './rules';
 import { findContract, isOver, totals } from './scoring';
-import { readSharedRules, useStored } from './storage';
+import { useStored } from './storage';
 import { Setup, type SetupResult } from './components/Setup';
 import { Sheet } from './components/Sheet';
 import { LineEntry } from './components/LineEntry';
@@ -14,19 +14,17 @@ type Screen =
   | { name: 'setup' }
   | { name: 'sheet' }
   | { name: 'line'; id: string }
-  | { name: 'settings' };
+  | { name: 'settings'; from: 'home' | 'sheet' };
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>({ name: 'home' });
   const [game, setGame] = useStored<Game | null>('barbu2.game', null);
   const [archive, setArchive] = useStored<Game[]>('barbu2.archive', []);
-  const [rules, setRules] = useStored<RuleSet>('barbu2.rules', DEFAULT_RULES);
+  const [rules, setRules] = useStored<RuleSet>('barbu3.rules', DEFAULT_RULES);
   const [known, setKnown] = useStored<string[]>('barbu2.players', []);
   const [last, setLast] = useStored<SetupResult>('barbu2.last', { players: [], deck: 32 });
-  const [shared, setShared] = useState<RuleSet | null>(() => readSharedRules());
 
   const go = (s: Screen) => { setScreen(s); window.scrollTo(0, 0); };
-  const clearHash = () => history.replaceState(null, '', location.pathname);
 
   const archiveCurrent = () => {
     if (game && Object.keys(game.results).length) setArchive((a) => [game, ...a].slice(0, 30));
@@ -45,6 +43,7 @@ export default function App() {
 
   if (screen.name === 'sheet' && game) {
     return <Sheet game={game} onBack={() => go({ name: 'home' })} onOpenLine={(id) => go({ name: 'line', id })}
+      onOpenRules={() => go({ name: 'settings', from: 'sheet' })}
       onFinish={() => { archiveCurrent(); setGame(null); go({ name: 'home' }); }} />;
   }
 
@@ -63,7 +62,14 @@ export default function App() {
   }
 
   if (screen.name === 'settings') {
-    return <Settings rules={rules} onChange={setRules} onBack={() => go({ name: 'home' })} />;
+    const inGame = screen.from === 'sheet' && !!game;
+    const back = () => go(inGame ? { name: 'sheet' } : { name: 'home' });
+    return <Settings rules={inGame ? game.rules : rules} inGame={inGame} onBack={back}
+      onSave={(r, keepForNext) => {
+        if (inGame) setGame({ ...game, rules: r });
+        if (keepForNext) setRules(r);
+        back();
+      }} />;
   }
 
   // ---- Accueil ----
@@ -76,18 +82,6 @@ export default function App() {
         <h1>Barbu</h1>
         <p>Le compteur de points</p>
       </div>
-
-      {shared && (
-        <section className="card notice">
-          <p>On vous a partagé un barème de points. L'utiliser à la place du vôtre ?</p>
-          <div className="row">
-            <button className="btn primary" onClick={() => {
-              setRules(shared); setShared(null); clearHash(); go({ name: 'settings' });
-            }}>Utiliser ce barème</button>
-            <button className="btn ghost" onClick={() => { setShared(null); clearHash(); }}>Ignorer</button>
-          </div>
-        </section>
-      )}
 
       {game && (
         <button className="card current-game" onClick={() => go({ name: 'sheet' })}>
@@ -105,7 +99,7 @@ export default function App() {
         if (game && !confirm('Une partie est en cours. En commencer une nouvelle ? (l’actuelle sera archivée)')) return;
         go({ name: 'setup' });
       }}>Nouvelle partie</button>
-      <button className="btn ghost big" onClick={() => go({ name: 'settings' })}>Barème des points</button>
+      <button className="btn ghost big" onClick={() => go({ name: 'settings', from: 'home' })}>Barème des points</button>
 
       {archive.length > 0 && (
         <section className="card">
@@ -113,7 +107,7 @@ export default function App() {
           <ul className="archive">
             {archive.map((g) => {
               const tt = totals(g);
-              const best = tt.indexOf(Math.max(...tt));
+              const best = tt.indexOf(Math.min(...tt));
               return (
                 <li key={g.id}>
                   <span>{new Date(g.createdAt).toLocaleDateString('fr-FR')} · {g.players.length} joueurs</span>
