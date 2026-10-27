@@ -33,16 +33,15 @@ const fromB64Url = (s: string) => {
 };
 
 export function rulesShareUrl(rules: RuleSet): string {
-  const { builtIn: _b, ...clean } = rules;
-  return `${location.origin}${location.pathname}#regles=${toB64Url(JSON.stringify(clean))}`;
+  return `${location.origin}${location.pathname}#bareme=${toB64Url(JSON.stringify(rules))}`;
 }
 
 export function readSharedRules(): RuleSet | null {
-  const m = location.hash.match(/regles=([\w-]+)/);
+  const m = location.hash.match(/bareme=([\w-]+)/);
   if (!m) return null;
   try {
     const r = JSON.parse(fromB64Url(m[1])) as RuleSet;
-    if (!r || !Array.isArray(r.contracts) || typeof r.name !== 'string') return null;
+    if (!r || !Array.isArray(r.contracts) || !r.contracts.length) return null;
     return r;
   } catch {
     return null;

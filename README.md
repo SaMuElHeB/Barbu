@@ -5,17 +5,16 @@ Installable sur téléphone (PWA), fonctionne hors connexion, données gardées 
 
 ## Fonctionnalités
 
-- 3 à 6 joueurs, jeu de **32 ou 52 cartes** (le nombre de plis et de cœurs s'adapte)
-- Chaque joueur donne à tour de rôle et choisit ses contrats ; grille des contrats déjà joués
-- Saisie rapide : compteurs +/− pour plis, cœurs, dames ; boutons pour Barbu / derniers plis ; ordre d'arrivée pour la Réussite
-- Vérification des totaux (ex. « 12 plis sur 13 »), aperçu des points avant d'enregistrer
-- Historique modifiable (toucher une donne pour la corriger ou la supprimer)
-- **Règles personnalisables** : valeur de chaque contrat, activer/désactiver, ajouter ses propres contrats
-  (par élément, carte précise, classement, combinaison type Salade avec multiplicateur)
-- **Partage des règles par lien** : le bouton ⤴ dans l'éditeur génère un lien ; l'ami qui l'ouvre peut les ajouter à ses règles
+- **Joueurs mémorisés** : les noms saisis une fois sont proposés aux parties suivantes (3 à 6 joueurs)
+- Jeu de **32 ou 52 cartes** (le nombre de plis et de cœurs à répartir s'adapte)
+- **Feuille de score** : le total de chaque joueur en haut, puis une ligne par manche :
+  pas de plis, pas de cœurs, pas de dames, pas le roi de cœur, pas les 2 derniers plis, salade, réussite
+- On touche une ligne et on indique ce que chacun a ramassé ; l'app calcule les points et vérifie les totaux
+- **Barème modifiable** (valeur de chaque ligne, points de la réussite, multiplicateur de la salade)
+  et **partageable par lien** avec ses amis
 
-Règles « Classique » par défaut : Barbu −20, cœur −2, dame −6, pli −2, avant-dernier pli −10, dernier pli −20,
-Salade = tout à la fois, Réussite +40 / +20 / +10 / 0.
+Barème par défaut : pli −2, cœur −2, dame −6, roi de cœur −20, avant-dernier pli −10, dernier pli −20,
+salade = tout à la fois, réussite +40 / +20 / +10 / 0.
 
 ## Lancer en local
 
@@ -42,11 +41,11 @@ npm run build
 ```
 src/
   types.ts        modèle de données (contrats, règles, partie)
-  rules.ts        règles fournies (Classique, Sans salade ni réussite)
-  scoring.ts      calcul des points, validation, ordre des donneurs
+  rules.ts        barème par défaut
+  scoring.ts      calcul des points et validation
   scoring.test.ts tests
-  storage.ts      localStorage + partage des règles par lien
-  components/     écrans (accueil, nouvelle partie, partie, donne, règles)
+  storage.ts      localStorage + partage du barème par lien
+  components/     écrans (accueil, nouvelle partie, feuille de score, saisie, barème)
 public/           manifest, service worker, icônes
 ```
 

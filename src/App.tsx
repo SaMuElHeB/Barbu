@@ -1,100 +1,74 @@
 import { useState } from 'react';
-import type { Game, Round, RuleSet } from './types';
-import { BUILT_IN_RULES, uid } from './rules';
-import { totalRounds, totals } from './scoring';
+import type { Game, RuleSet } from './types';
+import { DEFAULT_RULES, uid } from './rules';
+import { findContract, isOver, totals } from './scoring';
 import { readSharedRules, useStored } from './storage';
-import { Setup, type LastSetup } from './components/Setup';
-import { GameView } from './components/GameView';
-import { RoundEntry } from './components/RoundEntry';
-import { duplicateRules, RuleEditor, RulesList } from './components/Rules';
+import { Setup, type SetupResult } from './components/Setup';
+import { Sheet } from './components/Sheet';
+import { LineEntry } from './components/LineEntry';
+import { Settings } from './components/Settings';
 import { fmt } from './components/ui';
 
 type Screen =
   | { name: 'home' }
   | { name: 'setup' }
-  | { name: 'game' }
-  | { name: 'round'; editing?: Round }
-  | { name: 'rules' }
-  | { name: 'rule'; id: string };
+  | { name: 'sheet' }
+  | { name: 'line'; id: string }
+  | { name: 'settings' };
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>({ name: 'home' });
-  const [game, setGame] = useStored<Game | null>('barbu.game', null);
-  const [archive, setArchive] = useStored<Game[]>('barbu.archive', []);
-  const [custom, setCustom] = useStored<RuleSet[]>('barbu.rules', []);
-  const [last, setLast] = useStored<LastSetup>('barbu.last', {
-    players: ['', '', '', ''], deck: 32, ruleId: 'classique',
-  });
+  const [game, setGame] = useStored<Game | null>('barbu2.game', null);
+  const [archive, setArchive] = useStored<Game[]>('barbu2.archive', []);
+  const [rules, setRules] = useStored<RuleSet>('barbu2.rules', DEFAULT_RULES);
+  const [known, setKnown] = useStored<string[]>('barbu2.players', []);
+  const [last, setLast] = useStored<SetupResult>('barbu2.last', { players: [], deck: 32 });
   const [shared, setShared] = useState<RuleSet | null>(() => readSharedRules());
 
-  const ruleSets = [...BUILT_IN_RULES, ...custom];
   const go = (s: Screen) => { setScreen(s); window.scrollTo(0, 0); };
+  const clearHash = () => history.replaceState(null, '', location.pathname);
 
-  const saveRules = (r: RuleSet) => setCustom((cs) => (cs.some((c) => c.id === r.id) ? cs.map((c) => (c.id === r.id ? r : c)) : [...cs, r]));
-  const duplicate = (r: RuleSet) => { const d = duplicateRules(r); saveRules(d); go({ name: 'rule', id: d.id }); };
-
-  const importShared = () => {
-    if (!shared) return;
-    const r = { ...shared, id: uid(), builtIn: false };
-    saveRules(r);
-    setShared(null);
-    history.replaceState(null, '', location.pathname);
-    go({ name: 'rule', id: r.id });
-  };
-  const dismissShared = () => { setShared(null); history.replaceState(null, '', location.pathname); };
-
-  const finish = () => {
-    if (game && game.rounds.length) setArchive((a) => [game, ...a].slice(0, 20));
-    setGame(null);
-    go({ name: 'home' });
-  };
-
-  const saveRound = (r: Round) => {
-    if (!game) return;
-    const exists = game.rounds.some((x) => x.id === r.id);
-    setGame({ ...game, rounds: exists ? game.rounds.map((x) => (x.id === r.id ? r : x)) : [...game.rounds, r] });
-    go({ name: 'game' });
+  const archiveCurrent = () => {
+    if (game && Object.keys(game.results).length) setArchive((a) => [game, ...a].slice(0, 30));
   };
 
   if (screen.name === 'setup') {
-    return <Setup ruleSets={ruleSets} last={last} onBack={() => go({ name: 'home' })}
-      onStart={(g, s) => {
-        if (game && game.rounds.length) setArchive((a) => [game, ...a].slice(0, 20));
-        setGame(g); setLast(s); go({ name: 'game' });
+    return <Setup known={known} setKnown={setKnown} last={last} onBack={() => go({ name: 'home' })}
+      onStart={(s) => {
+        archiveCurrent();
+        setLast(s);
+        setGame({ id: uid(), createdAt: Date.now(), players: s.players, deck: s.deck,
+          rules: structuredClone(rules), results: {} });
+        go({ name: 'sheet' });
       }} />;
   }
 
-  if (screen.name === 'game' && game) {
-    return <GameView game={game} onBack={() => go({ name: 'home' })} onNewRound={() => go({ name: 'round' })}
-      onEditRound={(r) => go({ name: 'round', editing: r })} onFinish={finish} />;
+  if (screen.name === 'sheet' && game) {
+    return <Sheet game={game} onBack={() => go({ name: 'home' })} onOpenLine={(id) => go({ name: 'line', id })}
+      onFinish={() => { archiveCurrent(); setGame(null); go({ name: 'home' }); }} />;
   }
 
-  if (screen.name === 'round' && game) {
-    const editing = screen.editing;
-    return <RoundEntry game={game} editing={editing} onCancel={() => go({ name: 'game' })} onSave={saveRound}
-      onDelete={editing ? () => {
-        if (!confirm('Supprimer cette donne ?')) return;
-        setGame({ ...game, rounds: game.rounds.filter((x) => x.id !== editing.id) });
-        go({ name: 'game' });
-      } : undefined} />;
-  }
-
-  if (screen.name === 'rules') {
-    return <RulesList ruleSets={ruleSets} onBack={() => go({ name: 'home' })}
-      onOpen={(id) => go({ name: 'rule', id })} onDuplicate={duplicate} />;
-  }
-
-  if (screen.name === 'rule') {
-    const r = ruleSets.find((x) => x.id === screen.id);
-    if (r) {
-      return <RuleEditor rules={r} onBack={() => go({ name: 'rules' })} onChange={saveRules}
-        onDuplicate={() => duplicate(r)}
-        onDelete={() => { setCustom((cs) => cs.filter((c) => c.id !== r.id)); go({ name: 'rules' }); }} />;
+  if (screen.name === 'line' && game) {
+    const contract = findContract(game.rules, screen.id);
+    if (contract) {
+      const { [contract.id]: _, ...rest } = game.results;
+      return <LineEntry key={contract.id} game={game} contract={contract} onCancel={() => go({ name: 'sheet' })}
+        onSave={(r) => { setGame({ ...game, results: { ...game.results, [contract.id]: r } }); go({ name: 'sheet' }); }}
+        onClear={game.results[contract.id] ? () => {
+          if (!confirm('Effacer les points de cette manche ?')) return;
+          setGame({ ...game, results: rest });
+          go({ name: 'sheet' });
+        } : undefined} />;
     }
+  }
+
+  if (screen.name === 'settings') {
+    return <Settings rules={rules} onChange={setRules} onBack={() => go({ name: 'home' })} />;
   }
 
   // ---- Accueil ----
   const t = game ? totals(game) : [];
+  const played = game ? Object.keys(game.results).length : 0;
   return (
     <main className="page home">
       <div className="hero">
@@ -105,17 +79,21 @@ export default function App() {
 
       {shared && (
         <section className="card notice">
-          <p>On vous a partagé les règles <b>« {shared.name} »</b>.</p>
+          <p>On vous a partagé un barème de points. L'utiliser à la place du vôtre ?</p>
           <div className="row">
-            <button className="btn primary" onClick={importShared}>Ajouter à mes règles</button>
-            <button className="btn ghost" onClick={dismissShared}>Ignorer</button>
+            <button className="btn primary" onClick={() => {
+              setRules(shared); setShared(null); clearHash(); go({ name: 'settings' });
+            }}>Utiliser ce barème</button>
+            <button className="btn ghost" onClick={() => { setShared(null); clearHash(); }}>Ignorer</button>
           </div>
         </section>
       )}
 
       {game && (
-        <button className="card current-game" onClick={() => go({ name: 'game' })}>
-          <span className="label">Partie en cours · {game.rounds.length}/{totalRounds(game)} donnes</span>
+        <button className="card current-game" onClick={() => go({ name: 'sheet' })}>
+          <span className="label">
+            Partie en cours · {isOver(game) ? 'terminée' : `${played}/${game.rules.contracts.length} manches`}
+          </span>
           <span className="players">
             {game.players.map((p, i) => <span key={i}>{p} <b>{fmt(t[i])}</b></span>)}
           </span>
@@ -127,7 +105,7 @@ export default function App() {
         if (game && !confirm('Une partie est en cours. En commencer une nouvelle ? (l’actuelle sera archivée)')) return;
         go({ name: 'setup' });
       }}>Nouvelle partie</button>
-      <button className="btn ghost big" onClick={() => go({ name: 'rules' })}>Règles de comptage</button>
+      <button className="btn ghost big" onClick={() => go({ name: 'settings' })}>Barème des points</button>
 
       {archive.length > 0 && (
         <section className="card">

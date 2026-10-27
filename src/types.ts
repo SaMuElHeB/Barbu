@@ -1,38 +1,35 @@
 export type DeckSize = 32 | 52;
 
-/** Ce qu'on compte dans un contrat « par élément ». */
-export type CountTarget = 'tricks' | 'hearts' | 'queens' | 'kings' | 'custom';
+/** Ce qu'on compte dans une ligne « par élément ». */
+export type CountTarget = 'tricks' | 'hearts' | 'queens';
 
 interface BaseContract {
   id: string;
   name: string;
   emoji: string;
-  enabled: boolean;
 }
 
-/** Points par élément ramassé : plis, cœurs, dames… */
+/** Points par élément ramassé : plis, cœurs, dames. */
 export interface PerItemContract extends BaseContract {
   kind: 'perItem';
   target: CountTarget;
-  /** Total attendu quand target = 'custom'. */
-  customTotal?: number;
   pointsPerItem: number;
 }
 
-/** Une ou plusieurs « cartes / plis précis » attribués à un joueur : Barbu, dernier pli… */
+/** Carte ou pli précis attribué à un joueur : roi de cœur, 2 derniers plis. */
 export interface SlotsContract extends BaseContract {
   kind: 'slots';
   slots: { label: string; points: number }[];
 }
 
-/** Classement à l'arrivée : Réussite / Domino. */
+/** Classement à l'arrivée : Réussite. */
 export interface RankingContract extends BaseContract {
   kind: 'ranking';
   /** Points du 1er, 2e, 3e… Les places non renseignées valent 0. */
   points: number[];
 }
 
-/** Salade : on rejoue plusieurs contrats en même temps. */
+/** Salade : toutes les lignes négatives en même temps. */
 export interface CompositeContract extends BaseContract {
   kind: 'composite';
   parts: string[];
@@ -42,36 +39,29 @@ export interface CompositeContract extends BaseContract {
 export type Contract = PerItemContract | SlotsContract | RankingContract | CompositeContract;
 export type SimpleContract = PerItemContract | SlotsContract | RankingContract;
 
+/** Barème : la liste des lignes du Barbu avec leurs valeurs. */
 export interface RuleSet {
-  id: string;
-  name: string;
   contracts: Contract[];
-  /** Les règles livrées avec l'app ne se modifient pas directement (on les duplique). */
-  builtIn?: boolean;
 }
 
 /**
- * Saisie d'un contrat simple :
- * - perItem : nombre d'éléments par joueur
- * - slots   : index du joueur pour chaque slot (null = pas encore choisi)
+ * Saisie d'une ligne simple :
+ * - perItem : nombre d'éléments ramassés par joueur
+ * - slots   : index du joueur pour chaque carte / pli (null = pas encore choisi)
  * - ranking : index des joueurs dans l'ordre d'arrivée
  */
 export type PartInput = (number | null)[];
 
-export interface Round {
-  id: string;
-  dealer: number;
-  contractId: string;
-  /** clé = id du contrat simple (pour une salade : un input par partie). */
-  inputs: Record<string, PartInput>;
-}
+/** Résultat d'une ligne (une salade contient une saisie par ligne qui la compose). */
+export type LineResult = Record<string, PartInput>;
 
 export interface Game {
   id: string;
   createdAt: number;
   players: string[];
   deck: DeckSize;
+  /** Copie du barème au moment de créer la partie. */
   rules: RuleSet;
-  firstDealer: number;
-  rounds: Round[];
+  /** clé = id de la ligne jouée */
+  results: Record<string, LineResult>;
 }

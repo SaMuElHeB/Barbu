@@ -1,30 +1,32 @@
 import { useState } from 'react';
-import type { DeckSize, Game, RuleSet } from '../types';
-import { uid } from '../rules';
-import { activeContracts } from '../scoring';
+import type { DeckSize } from '../types';
 import { Segmented, TopBar } from './ui';
 
-export interface LastSetup { players: string[]; deck: DeckSize; ruleId: string }
+export interface SetupResult { players: string[]; deck: DeckSize }
 
-export function Setup({ ruleSets, last, onBack, onStart }: {
-  ruleSets: RuleSet[]; last: LastSetup; onBack: () => void; onStart: (g: Game, s: LastSetup) => void;
+export function Setup({ known, setKnown, last, onBack, onStart }: {
+  known: string[];
+  setKnown: (k: string[]) => void;
+  last: SetupResult;
+  onBack: () => void;
+  onStart: (s: SetupResult) => void;
 }) {
-  const [players, setPlayers] = useState<string[]>(last.players);
+  const [players, setPlayers] = useState<string[]>(last.players.filter((p) => known.includes(p)));
   const [deck, setDeck] = useState<DeckSize>(last.deck);
-  const [ruleId, setRuleId] = useState(ruleSets.some((r) => r.id === last.ruleId) ? last.ruleId : ruleSets[0].id);
-  const [firstDealer, setFirstDealer] = useState(0);
+  const [draft, setDraft] = useState('');
+  const [editing, setEditing] = useState(false);
 
-  const rules = ruleSets.find((r) => r.id === ruleId)!;
-  const names = players.map((p, i) => p.trim() || `Joueur ${i + 1}`);
-  const leftover = deck % players.length;
-  const nbContracts = activeContracts(rules).length;
+  const full = players.length >= 6;
+  const others = known.filter((k) => !players.includes(k));
 
-  const start = () => {
-    const game: Game = {
-      id: uid(), createdAt: Date.now(), players: names, deck,
-      rules: structuredClone(rules), firstDealer: Math.min(firstDealer, players.length - 1), rounds: [],
-    };
-    onStart(game, { players, deck, ruleId });
+  const addNew = () => {
+    const name = draft.trim().slice(0, 14);
+    if (!name || full) return;
+    const existing = known.find((k) => k.toLowerCase() === name.toLowerCase());
+    const final = existing ?? name;
+    if (!existing) setKnown([...known, final]);
+    if (!players.includes(final)) setPlayers([...players, final]);
+    setDraft('');
   };
 
   return (
@@ -32,51 +34,62 @@ export function Setup({ ruleSets, last, onBack, onStart }: {
       <TopBar title="Nouvelle partie" onBack={onBack} />
       <main className="page">
         <section className="card">
-          <h2>Joueurs</h2>
-          {players.map((p, i) => (
-            <div className="row" key={i}>
-              <input value={p} placeholder={`Joueur ${i + 1}`} maxLength={14}
-                onChange={(e) => setPlayers(players.map((x, j) => (j === i ? e.target.value : x)))} />
-              {players.length > 3 && (
-                <button className="icon-btn subtle" aria-label="Retirer"
-                  onClick={() => setPlayers(players.filter((_, j) => j !== i))}>×</button>
-              )}
-            </div>
-          ))}
-          {players.length < 6 && (
-            <button className="btn ghost" onClick={() => setPlayers([...players, ''])}>+ Ajouter un joueur</button>
-          )}
+          <h2>Joueurs de la partie <span className="count">{players.length}/6</span></h2>
+          {players.length === 0 && <p className="hint first">Ajoutez de 3 à 6 joueurs, dans l'ordre autour de la table.</p>}
+          <ol className="seated">
+            {players.map((p, i) => (
+              <li key={p}>
+                <span className="seat">{i + 1}</span>
+                <span className="grow">{p}</span>
+                <button className="icon-btn subtle" aria-label={`Retirer ${p}`}
+                  onClick={() => setPlayers(players.filter((x) => x !== p))}>×</button>
+              </li>
+            ))}
+          </ol>
+          <form className="row add" onSubmit={(e) => { e.preventDefault(); addNew(); }}>
+            <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Nouveau joueur"
+              maxLength={14} disabled={full} />
+            <button className="btn primary" type="submit" disabled={!draft.trim() || full}>Ajouter</button>
+          </form>
         </section>
+
+        {others.length > 0 && (
+          <section className="card">
+            <h2>
+              Joueurs enregistrés
+              <button className="link small" onClick={() => setEditing(!editing)}>{editing ? 'Terminé' : 'Modifier'}</button>
+            </h2>
+            <div className="chips">
+              {others.map((k) => (
+                editing ? (
+                  <button key={k} className="chip remove" onClick={() => setKnown(known.filter((x) => x !== k))}>
+                    {k} <span aria-label="Oublier">×</span>
+                  </button>
+                ) : (
+                  <button key={k} className="chip" disabled={full} onClick={() => setPlayers([...players, k])}>+ {k}</button>
+                )
+              ))}
+            </div>
+            <p className="hint">{editing ? 'Touchez un nom pour l’oublier.' : 'Touchez un nom pour l’ajouter à la partie.'}</p>
+          </section>
+        )}
 
         <section className="card">
           <h2>Jeu de cartes</h2>
           <Segmented options={[{ value: 32, label: '32 cartes' }, { value: 52, label: '52 cartes' }]}
             value={deck} onChange={setDeck} />
-          <p className="hint">
-            {Math.floor(deck / players.length)} cartes par joueur · {deck / 4} cœurs
-            {leftover > 0 && ` · retirez ${leftover} petite${leftover > 1 ? 's' : ''} carte${leftover > 1 ? 's' : ''} pour que tout le monde en ait autant`}
-          </p>
+          {players.length >= 3 && (
+            <p className="hint">
+              {Math.floor(deck / players.length)} cartes par joueur
+              {deck % players.length > 0 && ` · retirez ${deck % players.length} petite(s) carte(s) pour que tout le monde en ait autant`}
+            </p>
+          )}
         </section>
 
-        <section className="card">
-          <h2>Règles de comptage</h2>
-          <select value={ruleId} onChange={(e) => setRuleId(e.target.value)}>
-            {ruleSets.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-          </select>
-          <p className="hint">
-            {activeContracts(rules).map((c) => c.emoji).join(' ')} — {nbContracts} contrats × {players.length} donneurs
-            = {nbContracts * players.length} donnes
-          </p>
-        </section>
-
-        <section className="card">
-          <h2>Premier donneur</h2>
-          <select value={firstDealer} onChange={(e) => setFirstDealer(Number(e.target.value))}>
-            {names.map((n, i) => <option key={i} value={i}>{n}</option>)}
-          </select>
-        </section>
-
-        <button className="btn primary big" onClick={start} disabled={nbContracts === 0}>C'est parti</button>
+        <button className="btn primary big" disabled={players.length < 3}
+          onClick={() => onStart({ players, deck })}>
+          {players.length < 3 ? `Encore ${3 - players.length} joueur(s)` : 'Commencer la partie'}
+        </button>
       </main>
     </>
   );

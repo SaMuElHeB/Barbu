@@ -233,3 +233,42 @@ fieldset.plain { border: 0; margin: 0; padding: 0; display: flex; flex-direction
 .fields .hint { margin: 0; }
 .fields.ranks { display: grid; grid-template-columns: 1fr 1fr; }
 .tools { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+
+/* ---------- v2 : feuille de score ---------- */
+.hint.first { margin-top: 0; margin-bottom: 10px; }
+.mt { margin-top: 10px; }
+.card h2 .count { margin-left: auto; font-weight: 500; letter-spacing: 0; }
+.card h2 .link.small { margin-left: auto; font-size: .8rem; text-transform: none; letter-spacing: 0; }
+
+.seated { list-style: none; margin: 0 0 12px; padding: 0; }
+.seated li { display: flex; align-items: center; gap: 10px; padding: 4px 0; border-bottom: 1px solid var(--line); font-weight: 600; }
+.seated .seat { width: 24px; height: 24px; border-radius: 50%; background: var(--paper-2); display: grid; place-items: center; font-size: .8rem; color: var(--muted); }
+.row.add { margin: 0; }
+.row.add .btn { flex: none; }
+.chip.remove { border-color: var(--red); color: var(--red); }
+
+.totals { position: sticky; top: calc(env(safe-area-inset-top) + 64px); z-index: 5; }
+.totals-grid { display: grid; gap: 6px; }
+.totals-grid div {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 8px 2px; border-radius: 12px; background: var(--paper-2); min-width: 0;
+}
+.totals-grid div.lead { background: #f6e3b5; box-shadow: inset 0 0 0 2px var(--gold); }
+.totals-grid .who { font-size: .8rem; font-weight: 600; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.totals-grid b { font: 800 1.45rem var(--display); }
+.totals .hint { margin-top: 10px; }
+
+.sheet-card { padding: 6px 8px; }
+.sheet { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.sheet thead th { font-size: .72rem; color: var(--muted); font-weight: 600; padding: 8px 2px; }
+.sheet thead th span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sheet thead th:first-child { width: 38%; }
+.sheet tbody tr { cursor: pointer; border-top: 1px solid var(--line); }
+.sheet tbody th { text-align: left; padding: 12px 4px; display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: .9rem; line-height: 1.2; }
+.sheet tbody th .emoji { font-size: 1.1rem; flex: none; }
+.sheet td { text-align: center; font: 700 1rem var(--display); color: var(--muted); }
+.sheet td.neg { color: var(--red); }
+.sheet td.pos { color: var(--green); }
+.sheet td.enter { font: 600 .85rem var(--font); color: var(--red); text-align: right; padding-right: 8px; }
+.sheet tr.todo th { color: var(--muted); }
+.sheet tbody tr:active { background: var(--paper-2); }

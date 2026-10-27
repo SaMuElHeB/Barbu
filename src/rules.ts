@@ -1,65 +1,25 @@
-import type { Contract, RuleSet } from './types';
+import type { RuleSet } from './types';
 
 export const uid = () => Math.random().toString(36).slice(2, 10);
 
-export const CLASSIC: RuleSet = {
-  id: 'classique',
-  name: 'Classique',
-  builtIn: true,
+/** Barème par défaut, dans l'ordre de la feuille de score. */
+export const DEFAULT_RULES: RuleSet = {
   contracts: [
-    { id: 'barbu', kind: 'slots', name: 'Barbu', emoji: '🧔', enabled: true,
+    { id: 'plis', kind: 'perItem', name: 'Pas de plis', emoji: '🃏', target: 'tricks', pointsPerItem: -2 },
+    { id: 'coeurs', kind: 'perItem', name: 'Pas de cœurs', emoji: '♥️', target: 'hearts', pointsPerItem: -2 },
+    { id: 'dames', kind: 'perItem', name: 'Pas de dames', emoji: '👸', target: 'queens', pointsPerItem: -6 },
+    { id: 'roi', kind: 'slots', name: 'Pas le roi de cœur', emoji: '🧔',
       slots: [{ label: 'Roi de cœur', points: -20 }] },
-    { id: 'coeurs', kind: 'perItem', name: 'Pas de cœurs', emoji: '♥️', enabled: true,
-      target: 'hearts', pointsPerItem: -2 },
-    { id: 'dames', kind: 'perItem', name: 'Pas de dames', emoji: '👸', enabled: true,
-      target: 'queens', pointsPerItem: -6 },
-    { id: 'plis', kind: 'perItem', name: 'Pas de plis', emoji: '🃏', enabled: true,
-      target: 'tricks', pointsPerItem: -2 },
-    { id: 'derniers', kind: 'slots', name: 'Derniers plis', emoji: '🔚', enabled: true,
+    { id: 'derniers', kind: 'slots', name: 'Pas les 2 derniers plis', emoji: '🔚',
       slots: [{ label: 'Avant-dernier pli', points: -10 }, { label: 'Dernier pli', points: -20 }] },
-    { id: 'salade', kind: 'composite', name: 'Salade', emoji: '🥗', enabled: true,
-      parts: ['barbu', 'coeurs', 'dames', 'plis', 'derniers'], multiplier: 1 },
-    { id: 'reussite', kind: 'ranking', name: 'Réussite', emoji: '🏆', enabled: true,
-      points: [40, 20, 10, 0, 0, 0] },
+    { id: 'salade', kind: 'composite', name: 'Salade', emoji: '🥗',
+      parts: ['plis', 'coeurs', 'dames', 'roi', 'derniers'], multiplier: 1 },
+    { id: 'reussite', kind: 'ranking', name: 'Réussite', emoji: '🏆', points: [40, 20, 10, 0, 0, 0] },
   ],
 };
 
-export const SIMPLE: RuleSet = {
-  id: 'simple',
-  name: 'Sans salade ni réussite',
-  builtIn: true,
-  contracts: CLASSIC.contracts.map((c) =>
-    c.kind === 'composite' || c.kind === 'ranking' ? { ...c, enabled: false } : c,
-  ),
-};
-
-export const BUILT_IN_RULES = [CLASSIC, SIMPLE];
-
-export function newContract(kind: Contract['kind']): Contract {
-  const base = { id: uid(), enabled: true };
-  switch (kind) {
-    case 'perItem':
-      return { ...base, kind, name: 'Nouveau contrat', emoji: '🂠', target: 'tricks', pointsPerItem: -1 };
-    case 'slots':
-      return { ...base, kind, name: 'Carte précise', emoji: '🎯', slots: [{ label: 'Carte', points: -10 }] };
-    case 'ranking':
-      return { ...base, kind, name: 'Classement', emoji: '🏁', points: [30, 15, 5, 0, 0, 0] };
-    case 'composite':
-      return { ...base, kind, name: 'Combiné', emoji: '🥗', parts: [], multiplier: 1 };
-  }
-}
-
-export const KIND_LABEL: Record<Contract['kind'], string> = {
-  perItem: 'Points par élément (plis, cœurs, dames…)',
-  slots: 'Carte ou pli précis (Barbu, dernier pli…)',
-  ranking: 'Classement (Réussite, Domino…)',
-  composite: 'Combinaison de contrats (Salade)',
-};
-
 export const TARGET_LABEL = {
-  tricks: 'plis',
-  hearts: 'cœurs',
-  queens: 'dames',
-  kings: 'rois',
-  custom: 'éléments',
+  tricks: { one: 'pli', many: 'plis' },
+  hearts: { one: 'cœur', many: 'cœurs' },
+  queens: { one: 'dame', many: 'dames' },
 } as const;
